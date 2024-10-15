@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ethereum Address Converter</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: row;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        #input-output-container {
+            flex: 0 0 30%;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            padding: 20px;
+            border-right: 1px solid #ccc;
+        }
+        textarea {
+            padding: 10px;
+            font-size: 14px;
+            margin-bottom: 10px;
+            width: 90%;
+            height: 100px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            resize: none;
+            overflow-y: auto;
+        }
+        button {
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            background-color: #007bff;
+            color: white;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #log {
+            margin-top: 20%;
+            border: 1px solid #ccc;
+            padding: 5px;
+            overflow-y: auto;
+            height: 35%;
+            border-radius: 5px;
+            display: block;
+        }
+        #output-container {
+            flex: 0 0 70%;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .result {
+            font-size: 15px;
+            margin: 5px 0;
+        }
+        .empty-line {
+            height: 10px;
+        }
+        .log-title {
+            font-size: 12px;
+            color: #aaa;
+            font-weight: normal;
+            margin-bottom: 5px;
+        }
+        @media (max-width: 700px) {
+            body {
+                flex-direction: column;
+            }
+            #input-output-container {
+                flex: 0 0 25%; 
+                border-right: none; 
+                border-bottom: 1px solid #ccc; 
+            }
+            #output-container {
+                flex: 0 0 75%;
+                border-top: 1px solid #ccc; 
+            }
+            #log {
+                display: none; 
+            }
+            button {
+                margin-bottom: 10px;
+            }
+            h1 {
+                font-size: 25px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="input-output-container">
+        <h1>Ethereum Address Converter</h1>
+        <textarea id="input" placeholder="Enter Ethereum addresses" rows="4" onkeypress="handleKeyPress(event)"></textarea>
+        <button onclick="convertAddress()">Convert</button>
+        <div id="log">
+            <div class="log-title">Log:</div>
+        </div>
+    </div>
+    <div id="output-container">
+        <h2>History:</h2>
+        <div id="history"></div>
+    </div>
+
+    <script>
+        function isValidEthereumAddress(address) {
+            return /^0x[a-fA-F0-9]{40}$/.test(address);
+        }
+
+        async function sha3_256(input) {
+            const encoder = new TextEncoder();
+            return crypto.subtle.digest('SHA-256', encoder.encode(input))
+                .then(hash => {
+                    const hashArray = Array.from(new Uint8Array(hash));
+                    return '0x' + hashArray.map(b => ('00' + b.toString(16)).slice(-2)).join('');
+                });
+        }
+
+        async function toChecksumAddress(address) {
+            address = address.toLowerCase().replace('0x', '');
+            const hash = await sha3_256(address);
+            const hashString = hash.replace('0x', '');
+
+            let checksumAddress = '0x';
+            for (let i = 0; i < address.length; i++) {
+                checksumAddress += (parseInt(hashString[i], 16) >= 8) ? address[i].toUpperCase() : address[i];
+            }
+            return checksumAddress;
+        }
+
+        async function convertAddress() {
+            const userInput = document.getElementById('input').value.trim();
+            const logDiv = document.getElementById('log');
+            const historyDiv = document.getElementById('history');
+            const defaultAddress = '0x0000000000000000000000000000000000000000';
+
+            logDiv.innerHTML = `<div class="log-title">Log:</div>`;
+
+            const addresses = [];
+            let start = 0;
+
+            while ((start = userInput.indexOf("0x", start)) !== -1) {
+                const end = userInput.indexOf("0x", start + 2);
+                let address = '';
+
+                if (end !== -1) {
+                    address = userInput.substring(start, end);
+                } else {
+                    address = userInput.substring(start);
+                }
+
+                if (address.length >= 42) {
+                    address = address.slice(0, 42);
+                } else if (address.length < 42) {
+                    start += 2;
+                    continue;
+                }
+
+                addresses.push(address.trim());
+                start += 2;
+            }
+
+            for (const addr of addresses) {
+                if (!isValidEthereumAddress(addr)) {
+                    logDiv.innerHTML += `<p style="color: red;">Invalid Ethereum address format: ${addr}</p>`;
+                    historyDiv.innerHTML += `
+                        <div class="result"><strong>Checksum Address:</strong> ${defaultAddress}</div>
+                        <div class="result"><strong>Lowercase Address:</strong> ${addr.toLowerCase()}</div>
+                        <div class="empty-line"></div>
+                    `;
+                    continue;
+                }
+
+                let checksumAddress = '';
+                try {
+                    checksumAddress = await toChecksumAddress(addr);
+                } catch (error) {
+                    logDiv.innerHTML += `<p style="color: red;">Checksum conversion failed for: ${addr}</p>`;
+                    checksumAddress = defaultAddress;
+                }
+
+                const lowercaseAddress = addr.toLowerCase();
+
+                historyDiv.innerHTML += `
+                    <div class="result"><strong>Checksum Address:</strong> ${checksumAddress}</div>
+                    <div class="result"><strong>Lowercase Address:</strong> ${lowercaseAddress}</div>
+                    <div class="empty-line"></div>
+                `;
+            }
+
+            document.getElementById('input').value = '';
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                convertAddress();
+            }
+        }
+    </script>
+</body>
+</html>
