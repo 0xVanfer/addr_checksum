@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ethereum Address Converter</title>
+    <link rel="icon" href="https://ethereum.org/images/favicon.png" type="image/png">
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.6.9/dist/ethers.umd.min.js"></script>
     <style>
         body {
@@ -139,7 +140,7 @@
         }
 
         async function toChecksumAddress(address) {
-            return ethers.utils.getAddress(address); 
+            return ethers.utils.getAddress(address);
         }
 
         async function convertAddress() {
@@ -214,15 +215,12 @@
         }
 
         function copyToClipboard(text, button) {
-            navigator.clipboard.writeText(text).then(() => {
-                const copiedText = button.nextElementSibling;
-                copiedText.style.visibility = 'visible';
-                setTimeout(() => {
-                    copiedText.style.visibility = 'hidden';
-                }, 1000);
-            }).catch(err => {
-                // console.error('Failed to copy text: ', err);
-            });
+            navigator.clipboard.writeText(text);
+            const copiedText = button.nextElementSibling;
+            copiedText.style.visibility = 'visible';
+            setTimeout(() => {
+                copiedText.style.visibility = 'hidden';
+            }, 1000);
         }
 
         function handleKeyPress(event) {
