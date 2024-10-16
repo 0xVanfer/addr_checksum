@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ethereum Address Converter</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.6.9/dist/ethers.umd.min.js"></script>
     <style>
         body {
             display: flex;
@@ -71,6 +72,28 @@
             font-weight: normal;
             margin-bottom: 5px;
         }
+        .address {
+            font-family: monospace;
+        }
+        .copy-btn {
+            padding: 5px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            border: none;
+            background-color: #28a745;
+            color: white;
+            border-radius: 5px;
+        }
+        .copy-btn:hover {
+            background-color: #218838;
+        }
+        .copied {
+            display: inline-block;
+            margin-left: 10px;
+            color: #28a745;
+            font-size: 12px;
+            visibility: hidden;
+        }
         @media (max-width: 700px) {
             body {
                 flex-direction: column;
@@ -115,25 +138,8 @@
             return /^0x[a-fA-F0-9]{40}$/.test(address);
         }
 
-        async function sha3_256(input) {
-            const encoder = new TextEncoder();
-            return crypto.subtle.digest('SHA-256', encoder.encode(input))
-                .then(hash => {
-                    const hashArray = Array.from(new Uint8Array(hash));
-                    return '0x' + hashArray.map(b => ('00' + b.toString(16)).slice(-2)).join('');
-                });
-        }
-
         async function toChecksumAddress(address) {
-            address = address.toLowerCase().replace('0x', '');
-            const hash = await sha3_256(address);
-            const hashString = hash.replace('0x', '');
-
-            let checksumAddress = '0x';
-            for (let i = 0; i < address.length; i++) {
-                checksumAddress += (parseInt(hashString[i], 16) >= 8) ? address[i].toUpperCase() : address[i];
-            }
-            return checksumAddress;
+            return ethers.utils.getAddress(address); 
         }
 
         async function convertAddress() {
@@ -172,8 +178,12 @@
                 if (!isValidEthereumAddress(addr)) {
                     logDiv.innerHTML += `<p style="color: red;">Invalid Ethereum address format: ${addr}</p>`;
                     historyDiv.innerHTML += `
-                        <div class="result"><strong>Checksum Address:</strong> ${defaultAddress}</div>
-                        <div class="result"><strong>Lowercase Address:</strong> ${addr.toLowerCase()}</div>
+                        <div class="result"><strong>Checksum Address:</strong> ${defaultAddress}
+                        <button class="copy-btn" onclick="copyToClipboard('${defaultAddress}', this)">copy</button>
+                        <span class="copied">Copied!</span></div>
+                        <div class="result"><strong>Lowercase Address:</strong> ${addr.toLowerCase()}
+                        <button class="copy-btn" onclick="copyToClipboard('${addr.toLowerCase()}', this)">copy</button>
+                        <span class="copied">Copied!</span></div>
                         <div class="empty-line"></div>
                     `;
                     continue;
@@ -190,13 +200,29 @@
                 const lowercaseAddress = addr.toLowerCase();
 
                 historyDiv.innerHTML += `
-                    <div class="result"><strong>Checksum Address:</strong> ${checksumAddress}</div>
-                    <div class="result"><strong>Lowercase Address:</strong> ${lowercaseAddress}</div>
+                    <div class="result"><strong>Checksum Address:</strong> <span class="address">${checksumAddress}</span>
+                    <button class="copy-btn" onclick="copyToClipboard('${checksumAddress}', this)">copy</button>
+                    <span class="copied">Copied!</span></div>
+                    <div class="result"><strong>Lowercase Address:</strong> <span class="address">${lowercaseAddress}</span>
+                    <button class="copy-btn" onclick="copyToClipboard('${lowercaseAddress}', this)">copy</button>
+                    <span class="copied">Copied!</span></div>
                     <div class="empty-line"></div>
                 `;
             }
 
             document.getElementById('input').value = '';
+        }
+
+        function copyToClipboard(text, button) {
+            navigator.clipboard.writeText(text).then(() => {
+                const copiedText = button.nextElementSibling;
+                copiedText.style.visibility = 'visible';
+                setTimeout(() => {
+                    copiedText.style.visibility = 'hidden';
+                }, 1000);
+            }).catch(err => {
+                // console.error('Failed to copy text: ', err);
+            });
         }
 
         function handleKeyPress(event) {
